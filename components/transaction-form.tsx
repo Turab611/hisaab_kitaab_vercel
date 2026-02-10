@@ -19,19 +19,21 @@ import { Loader2 } from "lucide-react";
 const accounts = [
   "HBL (Main)",
   "Alfalah (Petty)",
-  "Ashari (Turab)",
-  "Ashari (Ali)",
-  "Ashari (Fahad)",
+  "Askari (Turab)",
+  "Askari (Ali)",
+  "Askari (Fahad)",
   "Cash",
 ];
 
 const quickNotes = [
-  "Lunch",
-  "Dinner",
-  "Tea/Coffee",
-  "Fuel Refill",
-  "Uber/Careem",
+  "Rent",
+  "Cleaning",
+  "Internet",
+  "Electricity",
+  "Water",
   "Groceries",
+  "Repayment",
+  "Lunch/Dinner"
 ];
 
 export default function TransactionForm() {

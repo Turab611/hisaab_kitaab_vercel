@@ -39,9 +39,9 @@ export async function fetchDashboardData() {
   const balances: Record<string, number> = {
     'HBL (Main)': 0,
     'Alfalah (Petty)': 0,
-    'Ashari (Turab)': 0,
-    'Ashari (Ali)': 0,
-    'Ashari (Fahad)': 0,
+    'Askari (Turab)': 0,
+    'Askari (Ali)': 0,
+    'Askari (Fahad)': 0,
     'Cash': 0
   };
 
@@ -58,18 +58,16 @@ export async function fetchDashboardData() {
   transactions.forEach((t) => {
     const amount = t.amount;
     
-    if (t.type === 'Income') {
-        const account = t.to;
-        const normalizedAccount = Object.keys(balances).find(k => k === account) || account;
-        if (Object.prototype.hasOwnProperty.call(balances, normalizedAccount)) {
-             balances[normalizedAccount] += amount;
-        }
-    } else if (t.type === 'Outgoing') {
-        const account = t.from;
-        const normalizedAccount = Object.keys(balances).find(k => k === account) || account;
-         if (Object.prototype.hasOwnProperty.call(balances, normalizedAccount)) {
-             balances[normalizedAccount] -= amount;
-        }
+    // Debit the source account if it exists in our balances
+    const fromAccount = Object.keys(balances).find(k => k === t.from);
+    if (fromAccount) {
+        balances[fromAccount] -= amount;
+    }
+
+    // Credit the destination account if it exists in our balances
+    const toAccount = Object.keys(balances).find(k => k === t.to);
+    if (toAccount) {
+        balances[toAccount] += amount;
     }
   });
 
