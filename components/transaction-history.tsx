@@ -15,6 +15,8 @@ interface Transaction {
   to: string;
   amount: number;
   description: string;
+  fromBalance?: number | null;
+  toBalance?: number | null;
 }
 
 interface TransactionHistoryProps {
@@ -40,7 +42,13 @@ export default function TransactionHistory({
             <TableHead>Date</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>From</TableHead>
+            <TableHead className="text-xs text-muted-foreground">
+              Bal.(From)
+            </TableHead>
             <TableHead>To</TableHead>
+            <TableHead className="text-xs text-muted-foreground">
+              Bal.(To)
+            </TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="text-right">Amount</TableHead>
           </TableRow>
@@ -48,7 +56,7 @@ export default function TransactionHistory({
         <TableBody>
           {transactions.map((t, i) => (
             <TableRow key={i}>
-              <TableCell>{new Date(t.date).toLocaleDateString()}</TableCell>
+              <TableCell>{new Date(t.date).toLocaleDateString("en-GB")}</TableCell>
               <TableCell>
                 <span
                   className={cn(
@@ -62,7 +70,23 @@ export default function TransactionHistory({
                 </span>
               </TableCell>
               <TableCell>{t.from}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">
+                {t.fromBalance !== null && t.fromBalance !== undefined
+                  ? new Intl.NumberFormat("en-PK", {
+                      style: "decimal",
+                      minimumFractionDigits: 0,
+                    }).format(t.fromBalance)
+                  : "-"}
+              </TableCell>
               <TableCell>{t.to}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">
+                {t.toBalance !== null && t.toBalance !== undefined
+                  ? new Intl.NumberFormat("en-PK", {
+                      style: "decimal",
+                      minimumFractionDigits: 0,
+                    }).format(t.toBalance)
+                  : "-"}
+              </TableCell>
               <TableCell
                 className="max-w-[200px] truncate"
                 title={t.description}
