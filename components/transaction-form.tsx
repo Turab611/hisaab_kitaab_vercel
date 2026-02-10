@@ -25,18 +25,6 @@ const accounts = [
   "Cash",
 ];
 
-const categories = [
-  "Food",
-  "Fuel",
-  "Office",
-  "Salary",
-  "Utilities",
-  "Transport",
-  "Entertainment",
-  "Medical",
-  "Miscellaneous",
-];
-
 const quickNotes = [
   "Lunch",
   "Dinner",
@@ -48,19 +36,23 @@ const quickNotes = [
 
 export default function TransactionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [note, setNote] = useState("");
+  const [type, setType] = useState("Outgoing");
+  const [description, setDescription] = useState("");
+  const [outgoingToCustom, setOutgoingToCustom] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setIsSubmitting(true);
     try {
       await submitTransaction(formData);
-      // Reset form logic would go here, but easiest is to rely on key reset or manual clear if needed.
-      // For now, we'll just reload the page or let the server action revalidate.
-      setNote("");
+      setDescription("");
+      setOutgoingToCustom(false); // Reset custom state
       const form = document.getElementById(
         "transaction-form",
       ) as HTMLFormElement;
       form.reset();
+      // Reset type state nicely or keep it, resetting form resets native inputs but not controlled react state if not careful.
+      // We are controlling 'type' via Select onValueChange, so we might need to reset it manually if we want default.
+      // For now, keeping the user's selected type is better UX usually.
     } catch (error) {
       console.error(error);
       alert("Failed to submit transaction");
@@ -76,33 +68,106 @@ export default function TransactionForm() {
       </CardHeader>
       <CardContent>
         <form id="transaction-form" action={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="type">Type</Label>
+            <Select name="type" defaultValue="Outgoing" onValueChange={setType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Income">Income</SelectItem>
+                <SelectItem value="Outgoing">Outgoing</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
-              <Select name="type" defaultValue="Outgoing">
-                <SelectTrigger>
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Income">Income</SelectItem>
-                  <SelectItem value="Outgoing">Outgoing</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="from">From</Label>
+              {type === "Income" ? (
+                <Input
+                  name="from"
+                  placeholder="Source (Client/Entity)"
+                  required
+                />
+              ) : (
+                <Select name="from" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc} value={acc}>
+                        {acc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="account">Account</Label>
-              <Select name="account" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((acc) => (
-                    <SelectItem key={acc} value={acc}>
-                      {acc}
+              <Label htmlFor="to">To</Label>
+              {type === "Income" ? (
+                <Select name="to" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc} value={acc}>
+                        {acc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : // Outgoing Logic
+              outgoingToCustom ? (
+                <div className="flex gap-2">
+                  <Input
+                    name="to"
+                    placeholder="Recipient Name"
+                    required
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setOutgoingToCustom(false)}
+                    title="Back to List"
+                  >
+                    x
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  name="to"
+                  required
+                  onValueChange={(val) => {
+                    if (val === "custom_recipient_trigger") {
+                      setOutgoingToCustom(true);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Recipient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((acc) => (
+                      <SelectItem key={acc} value={acc}>
+                        {acc} (Transfer)
+                      </SelectItem>
+                    ))}
+                    <SelectItem
+                      value="custom_recipient_trigger"
+                      className="font-semibold text-primary"
+                    >
+                      + Other / Vendor
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
@@ -112,28 +177,12 @@ export default function TransactionForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select name="category">
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
-              name="notes"
+              name="description"
               placeholder="Add details..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
             <div className="flex flex-wrap gap-2 mt-2">
               {quickNotes.map((qn) => (
@@ -141,7 +190,7 @@ export default function TransactionForm() {
                   type="button"
                   key={qn}
                   onClick={() =>
-                    setNote((prev) => (prev ? `${prev}, ${qn}` : qn))
+                    setDescription((prev) => (prev ? `${prev}, ${qn}` : qn))
                   }
                   className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-md hover:bg-secondary/80 transition-colors"
                 >

@@ -6,16 +6,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface Transaction {
   date: string;
   type: string;
-  account: string;
+  from: string;
+  to: string;
   amount: number;
-  category: string; 
-  notes: string;
+  description: string;
 }
 
 interface TransactionHistoryProps {
@@ -40,9 +39,9 @@ export default function TransactionHistory({
           <TableRow>
             <TableHead>Date</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Account</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Notes</TableHead>
+            <TableHead>From</TableHead>
+            <TableHead>To</TableHead>
+            <TableHead>Description</TableHead>
             <TableHead className="text-right">Amount</TableHead>
           </TableRow>
         </TableHeader>
@@ -62,10 +61,13 @@ export default function TransactionHistory({
                   {t.type}
                 </span>
               </TableCell>
-              <TableCell>{t.account}</TableCell>
-              <TableCell>{t.category}</TableCell>
-              <TableCell className="max-w-[200px] truncate" title={t.notes}>
-                {t.notes}
+              <TableCell>{t.from}</TableCell>
+              <TableCell>{t.to}</TableCell>
+              <TableCell
+                className="max-w-[200px] truncate"
+                title={t.description}
+              >
+                {t.description}
               </TableCell>
               <TableCell
                 className={cn(
