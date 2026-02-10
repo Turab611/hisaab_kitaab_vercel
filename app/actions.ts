@@ -7,22 +7,44 @@ export async function submitTransaction(formData: FormData) {
   const type = formData.get('type') as string;
   const from = formData.get('from') as string;
   const to = formData.get('to') as string;
-  const amount = formData.get('amount') as string;
+  const amountVal = formData.get('amount') as string;
   const description = formData.get('description') as string;
   const date = new Date().toISOString();
 
-  if (!type || !from || !to || !amount) {
+  if (!type || !from || !to || !amountVal) {
     throw new Error('Missing required fields');
   }
+  
+  const amount = parseFloat(amountVal);
 
-  // Schema: Date, Type, From, To, Amount, Description
+  // 1. Fetch current final balances to calculate the new running balance
+  const { balances } = await fetchDashboardData();
+  
+  let newFromBal: string | number = '-';
+  let newToBal: string | number = '-';
+
+  // Calculate new From Balance
+  // Check if 'from' is one of our tracked accounts
+  if (Object.prototype.hasOwnProperty.call(balances, from)) {
+    newFromBal = balances[from] - amount;
+  }
+
+  // Calculate new To Balance
+  // Check if 'to' is one of our tracked accounts
+  if (Object.prototype.hasOwnProperty.call(balances, to)) {
+    newToBal = balances[to] + amount;
+  }
+
+  // Schema: Date, Type, From, To, Amount, Description, FromBalance, ToBalance
   const rowData = [
     date,
     type,
     from,
     to,
-    amount,
-    description || '-'
+    amountVal,
+    description || '-',
+    newFromBal.toString(),
+    newToBal.toString()
   ];
 
   await appendTransaction(rowData);
@@ -35,7 +57,7 @@ export async function fetchDashboardData(accountFilter?: string) {
   // Skip header row if it exists
   const data = rows.slice(1);
 
-  // Initial Balances
+  // Initial Balances for Calculation
   const balances: Record<string, number> = {
     'HBL (Main)': 0,
     'Alfalah (Petty)': 0,
@@ -45,10 +67,7 @@ export async function fetchDashboardData(accountFilter?: string) {
     'Cash': 0
   };
 
-  // Process transactions chronologically (Oldest first) to calculate running balances
-  // Assuming rows are appended chronologically. If date sort is needed, we might need to sort first.
-  // Google Sheets usually appends at bottom, so index order is chronological.
-  
+  // Process transactions chronologically
   const processedTransactions = data.map((row) => {
     const amount = parseFloat(row[4]?.replace(/[^0-9.-]+/g, '')) || 0;
     const from = row[2];
@@ -56,19 +75,26 @@ export async function fetchDashboardData(accountFilter?: string) {
     
     // Debit From
     const fromAccount = Object.keys(balances).find(k => k === from);
-    let fromBalance = 0;
+    let calculatedFromBalance = 0;
     if (fromAccount) {
         balances[fromAccount] -= amount;
-        fromBalance = balances[fromAccount];
+        calculatedFromBalance = balances[fromAccount];
     }
 
     // Credit To
     const toAccount = Object.keys(balances).find(k => k === to);
-    let toBalance = 0;
+    let calculatedToBalance = 0;
     if (toAccount) {
         balances[toAccount] += amount;
-        toBalance = balances[toAccount];
+        calculatedToBalance = balances[toAccount];
     }
+
+    // Read logged balances from sheet if available (cols 6 & 7)
+    // row[6] = From Balance, row[7] = To Balance
+    // If they exist and are not '-', use them for the "trail".
+    // Otherwise fallback to the calculated value.
+    const loggedFromBal = row[6] && row[6] !== '-' ? parseFloat(row[6]) : null;
+    const loggedToBal = row[7] && row[7] !== '-' ? parseFloat(row[7]) : null;
 
     return {
         date: row[0],
@@ -77,21 +103,24 @@ export async function fetchDashboardData(accountFilter?: string) {
         to: to,
         amount: amount,
         description: row[5],
-        fromBalance: fromAccount ? fromBalance : null,
-        toBalance: toAccount ? toBalance : null
+        // Prefer logged balance if valid number, else calculated
+        fromBalance: (loggedFromBal !== null && !isNaN(loggedFromBal)) 
+            ? loggedFromBal 
+            : (fromAccount ? calculatedFromBalance : null),
+        toBalance: (loggedToBal !== null && !isNaN(loggedToBal))
+            ? loggedToBal
+            : (toAccount ? calculatedToBalance : null)
     };
   }).reverse(); // Newest first
 
   let displayedTransactions = processedTransactions;
 
   if (accountFilter) {
-      // Decode if necessary, though basic string match should work
       const decodedFilter = decodeURIComponent(accountFilter);
       displayedTransactions = processedTransactions.filter(t => 
           t.from === decodedFilter || t.to === decodedFilter
       );
   } else {
-      // Default view: Limit to recent 20
       displayedTransactions = processedTransactions.slice(0, 20);
   }
 
